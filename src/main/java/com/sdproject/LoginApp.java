@@ -1,11 +1,16 @@
 package com.sdproject;
 
+import java.sql.SQLException;
+
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import java.util.Collections;
 
 public class LoginApp extends Application {
 
@@ -89,6 +94,12 @@ public class LoginApp extends Application {
         gridPane.add(jobTitleLabel, 0, 5);
         gridPane.add(closeButton, 0, 6);
 
+        // Add a button to view employee list
+        Button employeeListButton = new Button("View Employee List");
+        gridPane.add(employeeListButton, 1, 4);
+
+        employeeListButton.setOnAction(event -> showEmployeeListWindow());
+
         // Handle close button click
         closeButton.setOnAction(event -> employeeInfoStage.close());
 
@@ -97,6 +108,53 @@ public class LoginApp extends Application {
         employeeInfoStage.setScene(scene);
         employeeInfoStage.show();
     }
+
+    private void showEmployeeListWindow() {
+    // Create a new stage (window)
+    Stage employeeListStage = new Stage();
+    employeeListStage.setTitle("Employee List");
+
+    // Create a TableView
+    TableView<Employee> tableView = new TableView<>();
+
+    // Define columns
+    TableColumn<Employee, Integer> idColumn = new TableColumn<>("ID");
+    idColumn.setCellValueFactory(new PropertyValueFactory<>("empid"));
+
+    TableColumn<Employee, String> fnameColumn = new TableColumn<>("First Name");
+    fnameColumn.setCellValueFactory(new PropertyValueFactory<>("fname"));
+
+    TableColumn<Employee, String> jobTitleColumn = new TableColumn<>("Job Title");
+    jobTitleColumn.setCellValueFactory(new PropertyValueFactory<>("jobTitle"));
+
+    TableColumn<Employee, Double> salaryColumn = new TableColumn<>("Salary");
+    salaryColumn.setCellValueFactory(new PropertyValueFactory<>("salary"));
+
+    TableColumn<Employee, Double> earningsColumn = new TableColumn<>("Earnings");
+    earningsColumn.setCellValueFactory(new PropertyValueFactory<>("earnings"));
+
+    TableColumn<Employee, Double> healthcareColumn = new TableColumn<>("Healthcare");
+    healthcareColumn.setCellValueFactory(new PropertyValueFactory<>("healthcare"));
+
+    // Add columns to the TableView
+    Collections.addAll(tableView.getColumns(), idColumn, fnameColumn, jobTitleColumn, salaryColumn, earningsColumn, healthcareColumn);
+
+    // Fetch employee data and populate the TableView
+    try {
+        tableView.getItems().addAll(DatabaseConnection.getAllEmployees());
+    } catch (SQLException e) {
+        System.out.println("Error fetching employee list: " + e.getMessage());
+        e.printStackTrace();
+    }
+
+    // Set up the layout
+    VBox vbox = new VBox(tableView);
+    Scene scene = new Scene(vbox, 800, 400);
+
+    // Set up the stage
+    employeeListStage.setScene(scene);
+    employeeListStage.show();
+}
 
     public static void main(String[] args) {
         launch(args);
