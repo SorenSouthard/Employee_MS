@@ -5,12 +5,18 @@ import java.sql.SQLException;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.PasswordField;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-import java.util.Collections;
 
 public class LoginApp extends Application {
 
@@ -109,15 +115,26 @@ public class LoginApp extends Application {
         employeeInfoStage.show();
     }
 
-    private void showEmployeeListWindow() {
-    // Create a new stage (window)
+private void showEmployeeListWindow() {
     Stage employeeListStage = new Stage();
     employeeListStage.setTitle("Employee List");
 
-    // Create a TableView
+    // ComboBox for selecting search column
+    ComboBox<String> searchFieldBox = new ComboBox<>();
+    searchFieldBox.getItems().addAll("Fname", "Lname", "DOB", "SSN", "empid");
+    searchFieldBox.setValue("Fname"); // Default selection
+
+    // TextField for search value
+    TextField searchField = new TextField();
+    searchField.setPromptText("Enter search value");
+
+    // Search button
+    Button searchButton = new Button("Search");
+    Button resetButton = new Button("Reset");
+
+    // TableView for results
     TableView<Employee> tableView = new TableView<>();
 
-    // Define columns
     TableColumn<Employee, Integer> idColumn = new TableColumn<>("ID");
     idColumn.setCellValueFactory(new PropertyValueFactory<>("empid"));
 
@@ -136,22 +153,43 @@ public class LoginApp extends Application {
     TableColumn<Employee, Double> healthcareColumn = new TableColumn<>("Healthcare");
     healthcareColumn.setCellValueFactory(new PropertyValueFactory<>("healthcare"));
 
-    // Add columns to the TableView
-    Collections.addAll(tableView.getColumns(), idColumn, fnameColumn, jobTitleColumn, salaryColumn, earningsColumn, healthcareColumn);
+    tableView.getColumns().addAll(idColumn, fnameColumn, jobTitleColumn, salaryColumn, earningsColumn, healthcareColumn);
 
-    // Fetch employee data and populate the TableView
+    // Initial population of all employees
     try {
         tableView.getItems().addAll(DatabaseConnection.getAllEmployees());
     } catch (SQLException e) {
-        System.out.println("Error fetching employee list: " + e.getMessage());
         e.printStackTrace();
     }
 
-    // Set up the layout
-    VBox vbox = new VBox(tableView);
-    Scene scene = new Scene(vbox, 800, 400);
+    // Search logic
+    searchButton.setOnAction(event -> {
+        String column = searchFieldBox.getValue();
+        String value = searchField.getText();
+        try {
+            tableView.getItems().clear();
+            tableView.getItems().addAll(DatabaseConnection.searchEmployees(column, value));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    });
+    resetButton.setOnAction(event -> {
+        searchField.clear(); // clear the text box
+        tableView.getItems().clear();
+        try {
+            tableView.getItems().addAll(DatabaseConnection.getAllEmployees());
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    });
 
-    // Set up the stage
+    // Layout
+    HBox searchBar = new HBox(10, new Label("Search by:"), searchFieldBox, searchField, searchButton, resetButton);
+    tableView.setPrefHeight(350); 
+    VBox layout = new VBox(10, searchBar, tableView);
+    layout.setPadding(new Insets(10));
+
+    Scene scene = new Scene(layout, 900, 450);
     employeeListStage.setScene(scene);
     employeeListStage.show();
 }
