@@ -115,84 +115,129 @@ public class LoginApp extends Application {
         employeeInfoStage.show();
     }
 
-private void showEmployeeListWindow() {
-    Stage employeeListStage = new Stage();
-    employeeListStage.setTitle("Employee List");
+    private void showEmployeeListWindow() {
+        Stage employeeListStage = new Stage();
+        employeeListStage.setTitle("Employee List");
 
-    // ComboBox for selecting search column
-    ComboBox<String> searchFieldBox = new ComboBox<>();
-    searchFieldBox.getItems().addAll("Fname", "Lname", "DOB", "SSN", "empid");
-    searchFieldBox.setValue("Fname"); // Default selection
+        // ComboBox for selecting search column
+        ComboBox<String> searchFieldBox = new ComboBox<>();
+        searchFieldBox.getItems().addAll("Fname", "Lname", "DOB", "SSN", "empid");
+        searchFieldBox.setValue("Fname"); // Default selection
 
-    // TextField for search value
-    TextField searchField = new TextField();
-    searchField.setPromptText("Enter search value");
+        // TextField for search value
+        TextField searchField = new TextField();
+        searchField.setPromptText("Enter search value");
 
-    // Search button
-    Button searchButton = new Button("Search");
-    Button resetButton = new Button("Reset");
+        // Search button
+        Button searchButton = new Button("Search");
+        Button resetButton = new Button("Reset");
 
-    // TableView for results
-    TableView<Employee> tableView = new TableView<>();
+        // TableView for results
+        TableView<Employee> tableView = new TableView<>();
 
-    TableColumn<Employee, Integer> idColumn = new TableColumn<>("ID");
-    idColumn.setCellValueFactory(new PropertyValueFactory<>("empid"));
+        TableColumn<Employee, Integer> idColumn = new TableColumn<>("ID");
+        idColumn.setCellValueFactory(new PropertyValueFactory<>("empid"));
 
-    TableColumn<Employee, String> fnameColumn = new TableColumn<>("First Name");
-    fnameColumn.setCellValueFactory(new PropertyValueFactory<>("fname"));
+        TableColumn<Employee, String> fnameColumn = new TableColumn<>("First Name");
+        fnameColumn.setCellValueFactory(new PropertyValueFactory<>("fname"));
 
-    TableColumn<Employee, String> jobTitleColumn = new TableColumn<>("Job Title");
-    jobTitleColumn.setCellValueFactory(new PropertyValueFactory<>("jobTitle"));
+        TableColumn<Employee, String> jobTitleColumn = new TableColumn<>("Job Title");
+        jobTitleColumn.setCellValueFactory(new PropertyValueFactory<>("jobTitle"));
 
-    TableColumn<Employee, Double> salaryColumn = new TableColumn<>("Salary");
-    salaryColumn.setCellValueFactory(new PropertyValueFactory<>("salary"));
+        TableColumn<Employee, Double> salaryColumn = new TableColumn<>("Salary");
+        salaryColumn.setCellValueFactory(new PropertyValueFactory<>("salary"));
 
-    TableColumn<Employee, Double> earningsColumn = new TableColumn<>("Earnings");
-    earningsColumn.setCellValueFactory(new PropertyValueFactory<>("earnings"));
+        TableColumn<Employee, Double> earningsColumn = new TableColumn<>("Earnings");
+        earningsColumn.setCellValueFactory(new PropertyValueFactory<>("earnings"));
 
-    TableColumn<Employee, Double> healthcareColumn = new TableColumn<>("Healthcare");
-    healthcareColumn.setCellValueFactory(new PropertyValueFactory<>("healthcare"));
+        TableColumn<Employee, Double> healthcareColumn = new TableColumn<>("Healthcare");
+        healthcareColumn.setCellValueFactory(new PropertyValueFactory<>("healthcare"));
 
-    tableView.getColumns().addAll(idColumn, fnameColumn, jobTitleColumn, salaryColumn, earningsColumn, healthcareColumn);
+        tableView.getColumns().addAll(idColumn, fnameColumn, jobTitleColumn, salaryColumn, earningsColumn, healthcareColumn);
 
-    // Initial population of all employees
-    try {
-        tableView.getItems().addAll(DatabaseConnection.getAllEmployees());
-    } catch (SQLException e) {
-        e.printStackTrace();
-    }
-
-    // Search logic
-    searchButton.setOnAction(event -> {
-        String column = searchFieldBox.getValue();
-        String value = searchField.getText();
-        try {
-            tableView.getItems().clear();
-            tableView.getItems().addAll(DatabaseConnection.searchEmployees(column, value));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    });
-    resetButton.setOnAction(event -> {
-        searchField.clear(); // clear the text box
-        tableView.getItems().clear();
+        // Initial population of all employees
         try {
             tableView.getItems().addAll(DatabaseConnection.getAllEmployees());
         } catch (SQLException e) {
             e.printStackTrace();
         }
-    });
 
-    // Layout
-    HBox searchBar = new HBox(10, new Label("Search by:"), searchFieldBox, searchField, searchButton, resetButton);
-    tableView.setPrefHeight(350); 
-    VBox layout = new VBox(10, searchBar, tableView);
-    layout.setPadding(new Insets(10));
+        // Search logic
+        searchButton.setOnAction(event -> {
+            String column = searchFieldBox.getValue();
+            String value = searchField.getText();
+            try {
+                tableView.getItems().clear();
+                tableView.getItems().addAll(DatabaseConnection.searchEmployees(column, value));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
 
-    Scene scene = new Scene(layout, 900, 450);
-    employeeListStage.setScene(scene);
-    employeeListStage.show();
-}
+        resetButton.setOnAction(event -> {
+            searchField.clear();
+            tableView.getItems().clear();
+            try {
+                tableView.getItems().addAll(DatabaseConnection.getAllEmployees());
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        });
+
+        // Update form
+        Label updateLabel = new Label("Update Employee Data");
+        ComboBox<String> updateFieldBox = new ComboBox<>();
+        updateFieldBox.getItems().addAll("Fname", "Lname", "email", "Salary");
+        updateFieldBox.setValue("Fname");
+
+        TextField updateValueField = new TextField();
+        updateValueField.setPromptText("Enter new value");
+
+        Button updateButton = new Button("Update");
+        Label updateStatusLabel = new Label();
+
+        // Update button action
+        updateButton.setOnAction(event -> {
+            Employee selectedEmployee = tableView.getSelectionModel().getSelectedItem();
+            if (selectedEmployee == null) {
+                updateStatusLabel.setText("Please select an employee first");
+                return;
+            }
+
+            String field = updateFieldBox.getValue();
+            String value = updateValueField.getText();
+
+            if (value.isEmpty()) {
+                updateStatusLabel.setText("Please enter a value");
+                return;
+            }
+
+            try {
+                boolean success = DatabaseConnection.updateEmployeeData(selectedEmployee.getEmpid(), field, value);
+                if (success) {
+                    updateStatusLabel.setText("Update successful!");
+                    // Refresh the table
+                    tableView.getItems().clear();
+                    tableView.getItems().addAll(DatabaseConnection.getAllEmployees());
+                } else {
+                    updateStatusLabel.setText("Update failed");
+                }
+            } catch (SQLException e) {
+                updateStatusLabel.setText("Error: " + e.getMessage());
+                e.printStackTrace();
+            }
+        });
+
+        // Layout
+        HBox searchBar = new HBox(10, new Label("Search by:"), searchFieldBox, searchField, searchButton, resetButton);
+        HBox updateBar = new HBox(10, updateLabel, updateFieldBox, updateValueField, updateButton);
+        VBox layout = new VBox(10, searchBar, tableView, updateBar, updateStatusLabel);
+        layout.setPadding(new Insets(10));
+
+        Scene scene = new Scene(layout, 900, 500);
+        employeeListStage.setScene(scene);
+        employeeListStage.show();
+    }
 
     public static void main(String[] args) {
         launch(args);
