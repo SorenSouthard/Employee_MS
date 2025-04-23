@@ -4,15 +4,15 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.Statement;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
 public class DatabaseConnection {
     private static final String URL = "jdbc:mysql://localhost:3306/employeedata";
     private static final String USER = "root";
-    private static final String PASSWORD = "pass";
+    private static final String PASSWORD = "password";
 
     public static Connection getConnection() throws SQLException {
         try {
@@ -462,6 +462,8 @@ public static boolean updateEmployeeData(int empid, String field, String value) 
     }
 }
 
+
+
 public static void closeConnection(Connection conn) {
     if (conn != null) {
         try {
@@ -552,16 +554,66 @@ public static List<Employee> searchEmployeesBySalaryRange(double minSalary, doub
  * @throws SQLException If there is an error executing the database update
  */
 public static boolean updateSalaryRange(double minSalary, double maxSalary, double percentage) throws SQLException {
-    String query = "UPDATE employees SET Salary = Salary * (1 + ?/100) WHERE Salary BETWEEN ? AND ?";
-    try (Connection conn = getConnection();
-        PreparedStatement stmt = conn.prepareStatement(query)) {
-        stmt.setDouble(1, percentage);
-        stmt.setDouble(2, minSalary);
-        stmt.setDouble(3, maxSalary);
-        int rowsAffected = stmt.executeUpdate();
-        return rowsAffected > 0;
+    String selectQuery = "SELECT empid, Salary FROM employees WHERE Salary BETWEEN ? AND ?";
+    String updateSalary = "UPDATE employees SET Salary = ? WHERE empid = ?";
+    String updatePayroll = """
+        UPDATE payroll SET earnings = ?, fed_tax = ?, fed_med = ?, fed_SS = ?, 
+        state_tax = ?, retire_401k = ?, health_care = ? WHERE empid = ?
+    """;
+
+    try (Connection conn = getConnection()) {
+        conn.setAutoCommit(false);
+
+        try (PreparedStatement selectStmt = conn.prepareStatement(selectQuery)) {
+            selectStmt.setDouble(1, minSalary);
+            selectStmt.setDouble(2, maxSalary);
+            try (ResultSet rs = selectStmt.executeQuery()) {
+                while (rs.next()) {
+                    int empid = rs.getInt("empid");
+                    double currentSalary = rs.getDouble("Salary");
+                    double newSalary = round(currentSalary * (1 + percentage / 100.0));
+
+                    double earnings = round(newSalary * 0.02);
+                    double fed_tax = round(earnings * 0.31);
+                    double fed_med = round(earnings * 0.014);
+                    double fed_SS = round(earnings * 0.062);
+                    double state_tax = round(earnings * 0.12);
+                    double retire_401k = round(earnings * 0.005);
+                    double health_care = round(earnings * 0.03);
+
+                    try (PreparedStatement updateStmt = conn.prepareStatement(updateSalary)) {
+                        updateStmt.setDouble(1, newSalary);
+                        updateStmt.setInt(2, empid);
+                        updateStmt.executeUpdate();
+                    }
+
+                    try (PreparedStatement updateStmt = conn.prepareStatement(updatePayroll)) {
+                        updateStmt.setDouble(1, earnings);
+                        updateStmt.setDouble(2, fed_tax);
+                        updateStmt.setDouble(3, fed_med);
+                        updateStmt.setDouble(4, fed_SS);
+                        updateStmt.setDouble(5, state_tax);
+                        updateStmt.setDouble(6, retire_401k);
+                        updateStmt.setDouble(7, health_care);
+                        updateStmt.setInt(8, empid);
+                        updateStmt.executeUpdate();
+                    }
+                }
+            }
+        }
+
+        conn.commit();
+        return true;
+    } catch (SQLException e) {
+        throw e;
     }
 }
+
+private static double round(double value) {
+    return Math.round(value * 100.0) / 100.0;
+}
+
+
 
 /**
  * Retrieves a list of all unique department names from the database
