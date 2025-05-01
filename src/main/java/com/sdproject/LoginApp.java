@@ -737,49 +737,76 @@ public class LoginApp extends Application {
     private void setupEmployeeTableColumns(TableView<Employee> tableView) {
         TableColumn<Employee, Integer> idColumn = new TableColumn<>("ID");
         idColumn.setCellValueFactory(new PropertyValueFactory<>("empid"));
-
-        // Name column for first and last name
+    
         TableColumn<Employee, String> nameColumn = new TableColumn<>("Name");
         nameColumn.setCellValueFactory(cellData -> {
             Employee employee = cellData.getValue();
             return new SimpleStringProperty(employee.getFname() + " " + employee.getLname());
         });
-
-        // Email column
+    
         TableColumn<Employee, String> emailColumn = new TableColumn<>("Email");
         emailColumn.setCellValueFactory(new PropertyValueFactory<>("email"));
-
-        // DOB column
+    
         TableColumn<Employee, String> dobColumn = new TableColumn<>("DOB");
         dobColumn.setCellValueFactory(new PropertyValueFactory<>("dob"));
-
-        // SSN column
+    
         TableColumn<Employee, String> ssnColumn = new TableColumn<>("SSN");
         ssnColumn.setCellValueFactory(new PropertyValueFactory<>("ssn"));
-
+    
         TableColumn<Employee, String> jobTitleColumn = new TableColumn<>("Job Title");
         jobTitleColumn.setCellValueFactory(new PropertyValueFactory<>("jobTitle"));
-
+    
         TableColumn<Employee, String> departmentColumn = new TableColumn<>("Department");
         departmentColumn.setCellValueFactory(new PropertyValueFactory<>("divisionName"));
-
-        TableColumn<Employee, Double> salaryColumn = new TableColumn<>("Salary");
-        salaryColumn.setCellValueFactory(new PropertyValueFactory<>("salary"));
-
-        TableColumn<Employee, Double> earningsColumn = new TableColumn<>("Earnings");
-        earningsColumn.setCellValueFactory(new PropertyValueFactory<>("earnings"));
-
-        // Add all columns to the table
-        tableView.getColumns().add(idColumn);
-        tableView.getColumns().add(nameColumn);
-        tableView.getColumns().add(emailColumn);
-        tableView.getColumns().add(dobColumn);
-        tableView.getColumns().add(ssnColumn);
-        tableView.getColumns().add(jobTitleColumn);
-        tableView.getColumns().add(departmentColumn);
-        tableView.getColumns().add(salaryColumn);
-        tableView.getColumns().add(earningsColumn);
+    
+        TableColumn<Employee, String> salaryColumn = new TableColumn<>("Salary");
+        salaryColumn.setCellValueFactory(cellData ->
+            new SimpleStringProperty(String.format("%.2f", cellData.getValue().getSalary()))
+        );        
+    
+        TableColumn<Employee, String> earningsColumn = new TableColumn<>("Earnings");
+        earningsColumn.setCellValueFactory(cellData ->
+            new SimpleStringProperty(String.format("%.2f", cellData.getValue().getEarnings()))
+        );
+        
+        TableColumn<Employee, String> fedTaxColumn = new TableColumn<>("Fed Tax");
+        fedTaxColumn.setCellValueFactory(cellData ->
+            new SimpleStringProperty(String.format("%.2f", cellData.getValue().getFederalTax()))
+        );
+        
+        TableColumn<Employee, String> fedMedColumn = new TableColumn<>("Medicare");
+        fedMedColumn.setCellValueFactory(cellData ->
+            new SimpleStringProperty(String.format("%.2f", cellData.getValue().getFederalMedicare()))
+        );
+        
+        TableColumn<Employee, String> fedSSColumn = new TableColumn<>("Social Security");
+        fedSSColumn.setCellValueFactory(cellData ->
+            new SimpleStringProperty(String.format("%.2f", cellData.getValue().getFederalSocialSecurity()))
+        );
+        
+        TableColumn<Employee, String> stateTaxColumn = new TableColumn<>("State Tax");
+        stateTaxColumn.setCellValueFactory(cellData ->
+            new SimpleStringProperty(String.format("%.2f", cellData.getValue().getStateTax()))
+        );
+        
+        TableColumn<Employee, String> retire401kColumn = new TableColumn<>("401(k)");
+        retire401kColumn.setCellValueFactory(cellData ->
+            new SimpleStringProperty(String.format("%.2f", cellData.getValue().getRetirement401k()))
+        );
+        
+        TableColumn<Employee, String> healthCareColumn = new TableColumn<>("Health Care");
+        healthCareColumn.setCellValueFactory(cellData ->
+            new SimpleStringProperty(String.format("%.2f", cellData.getValue().getHealthcare()))
+        );        
+    
+        tableView.getColumns().addAll(
+            idColumn, nameColumn, emailColumn, dobColumn, ssnColumn,
+            jobTitleColumn, departmentColumn, salaryColumn, earningsColumn,
+            fedTaxColumn, fedMedColumn, fedSSColumn,
+            stateTaxColumn, retire401kColumn, healthCareColumn
+        );
     }
+    
 
     /**
      * Updates the report display based on selected filters
