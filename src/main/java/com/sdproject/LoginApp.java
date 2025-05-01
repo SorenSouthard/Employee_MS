@@ -24,10 +24,10 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-import javafx.scene.text.Text;
 import javafx.geometry.Pos;
 import javafx.stage.Stage;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.collections.FXCollections;
 
 public class LoginApp extends Application {
 
@@ -173,8 +173,9 @@ public class LoginApp extends Application {
      * 1. Employees tab - for viewing and searching employee data
      * 2. Admin tab - for updating employee data and batch salary updates
      * 3. Reports tab - for viewing employee reports by department and job title
+     * @throws SQLException 
      */
-    private void showAdminWindow() {
+    private void showAdminWindow() throws SQLException {
         Stage employeeListStage = new Stage();
         employeeListStage.setTitle("Employee Management System");
 
@@ -209,8 +210,10 @@ public class LoginApp extends Application {
     /**
      * Creates the Admin tab content with update functionality
      * Includes individual employee updates and batch salary updates
+     * @throws SQLException if there is an error connecting to the database
+     * 
      */
-    private VBox createAdminTab() {
+    private VBox createAdminTab() throws SQLException {
         // Search functionality
         Label searchLabel = new Label("Search By:");
         searchLabel.setPrefWidth(100);
@@ -248,19 +251,40 @@ public class LoginApp extends Application {
         updateLabel.setAlignment(Pos.CENTER_LEFT);
 
         ComboBox<String> updateFieldBox = new ComboBox<>();
-        updateFieldBox.getItems().addAll("Fname", "Lname", "email");
+        updateFieldBox.getItems().addAll("Fname", "Lname", "email", "DOB", "SSN", "Job Title", "Department");
         updateFieldBox.setValue("Fname");
         updateFieldBox.setPrefWidth(150);
+        
 
         TextField updateValueField = new TextField();
         updateValueField.setPromptText("Enter new value");
+        
+        ComboBox<String> jobTitleComboBox = new ComboBox<>();
+        jobTitleComboBox.setItems(FXCollections.observableArrayList(DatabaseConnection.getAllJobTitles()));
+        jobTitleComboBox.setVisible(false);
+        ComboBox<String> departmentComboBox = new ComboBox<>();
+        departmentComboBox.setItems(FXCollections.observableArrayList(DatabaseConnection.getAllDepartments()));
+        departmentComboBox.setVisible(false);
+
+        updateFieldBox.setOnAction(e -> {
+            String selected = updateFieldBox.getValue();
+            boolean isJob = "Job Title".equals(selected);
+            boolean isDept = "Department".equals(selected);
+        
+            updateValueField.setVisible(!isJob && !isDept); // hide if dropdown is shown
+            jobTitleComboBox.setVisible(isJob);
+            departmentComboBox.setVisible(isDept);
+        });
+
 
         Button updateButton = new Button("Update");
         Button deleteButton = new Button("Delete");
         deleteButton.setPrefWidth(120);
         updateButton.setPrefWidth(120);
 
-        HBox updateElements = new HBox(10, updateFieldBox, updateValueField, updateButton, deleteButton);
+        VBox updateValueBox = new VBox(updateValueField, jobTitleComboBox, departmentComboBox);
+
+        HBox updateElements = new HBox(10, updateFieldBox, updateValueBox, updateButton, deleteButton);
         updateElements.setAlignment(Pos.CENTER_LEFT);
 
         VBox updateContainer = new VBox(10, updateLabel, updateElements);
@@ -369,10 +393,19 @@ public class LoginApp extends Application {
             }
 
             String field = updateFieldBox.getValue();
-            String value = updateValueField.getText();
+            String value;
 
-            if (value.isEmpty()) {
-                updateStatusLabel.setText("Please enter a value");
+            // Determine value based on visible input
+            if ("Job Title".equals(field)) {
+                value = jobTitleComboBox.getValue();
+            } else if ("Department".equals(field)) {
+                value = departmentComboBox.getValue();
+            } else {
+                value = updateValueField.getText();
+            }
+
+            if (value == null || value.isEmpty()) {
+                updateStatusLabel.setText("Please enter or select a value");
                 return;
             }
 
@@ -688,11 +721,13 @@ public class LoginApp extends Application {
         Label totalEmployeesLabel = new Label();
         Label totalSalaryLabel = new Label();
         Label averageSalaryLabel = new Label();
+        Label monthlySalaryLabel = new Label();
 
         VBox summaryBox = new VBox(5,
             totalEmployeesLabel,
             totalSalaryLabel,
-            averageSalaryLabel
+            averageSalaryLabel,
+            monthlySalaryLabel
         );
 
         // Report type change handler
@@ -700,21 +735,21 @@ public class LoginApp extends Application {
             String selectedType = reportTypeBox.getValue();
             departmentBox.setVisible(selectedType.equals("By Department"));
             jobTitleBox.setVisible(selectedType.equals("By Job Title"));
-            updateReport(selectedType, departmentBox.getValue(), jobTitleBox.getValue(), tableView, totalEmployeesLabel, totalSalaryLabel, averageSalaryLabel);
+            updateReport(selectedType, departmentBox.getValue(), jobTitleBox.getValue(), tableView, totalEmployeesLabel, totalSalaryLabel, averageSalaryLabel, monthlySalaryLabel);
         });
 
         // Department change handler
         departmentBox.setOnAction(e -> {
-            updateReport("By Department", departmentBox.getValue(), null, tableView, totalEmployeesLabel, totalSalaryLabel, averageSalaryLabel);
+            updateReport("By Department", departmentBox.getValue(), null, tableView, totalEmployeesLabel, totalSalaryLabel, averageSalaryLabel, monthlySalaryLabel);
         });
 
         // Job title change handler
         jobTitleBox.setOnAction(e -> {
-            updateReport("By Job Title", null, jobTitleBox.getValue(), tableView, totalEmployeesLabel, totalSalaryLabel, averageSalaryLabel);
+            updateReport("By Job Title", null, jobTitleBox.getValue(), tableView, totalEmployeesLabel, totalSalaryLabel, averageSalaryLabel, monthlySalaryLabel);
         });
 
         // Initial report display
-        updateReport("All Employees", null, null, tableView, totalEmployeesLabel, totalSalaryLabel, averageSalaryLabel);
+        updateReport("All Employees", null, null, tableView, totalEmployeesLabel, totalSalaryLabel, averageSalaryLabel, monthlySalaryLabel);
 
         // Layout setup
         HBox controls = new HBox(10,
@@ -748,7 +783,7 @@ public class LoginApp extends Application {
         emailColumn.setCellValueFactory(new PropertyValueFactory<>("email"));
     
         TableColumn<Employee, String> dobColumn = new TableColumn<>("DOB");
-        dobColumn.setCellValueFactory(new PropertyValueFactory<>("dob"));
+        dobColumn.setCellValueFactory(new PropertyValueFactory<>("dateOfBirth"));
     
         TableColumn<Employee, String> ssnColumn = new TableColumn<>("SSN");
         ssnColumn.setCellValueFactory(new PropertyValueFactory<>("ssn"));
@@ -758,6 +793,9 @@ public class LoginApp extends Application {
     
         TableColumn<Employee, String> departmentColumn = new TableColumn<>("Department");
         departmentColumn.setCellValueFactory(new PropertyValueFactory<>("divisionName"));
+
+        TableColumn<Employee, String> payDateColumn = new TableColumn<>("Pay Date");
+        payDateColumn.setCellValueFactory(new PropertyValueFactory<>("payDate"));
     
         TableColumn<Employee, String> salaryColumn = new TableColumn<>("Salary");
         salaryColumn.setCellValueFactory(cellData ->
@@ -801,7 +839,7 @@ public class LoginApp extends Application {
     
         tableView.getColumns().addAll(
             idColumn, nameColumn, emailColumn, dobColumn, ssnColumn,
-            jobTitleColumn, departmentColumn, salaryColumn, earningsColumn,
+            jobTitleColumn, departmentColumn, salaryColumn, payDateColumn, earningsColumn,
             fedTaxColumn, fedMedColumn, fedSSColumn,
             stateTaxColumn, retire401kColumn, healthCareColumn
         );
@@ -815,7 +853,8 @@ public class LoginApp extends Application {
                             TableView<Employee> tableView,
                             Label totalEmployeesLabel,
                             Label totalSalaryLabel,
-                            Label averageSalaryLabel) {
+                            Label averageSalaryLabel,
+                            Label monthlySalaryLabel) {
         try {
             List<Employee> employees;
             switch (reportType) {
@@ -842,6 +881,7 @@ public class LoginApp extends Application {
             totalEmployeesLabel.setText(String.format("Total Employees: %d", totalEmployees));
             totalSalaryLabel.setText(String.format("Total Salary: $%.2f", totalSalary));
             averageSalaryLabel.setText(String.format("Average Salary: $%.2f", averageSalary));
+            monthlySalaryLabel.setText(String.format("Monthly Salary: $%.2f", totalSalary / 12));
         } catch (SQLException e) {
             showAlert("Error", "Failed to update report: " + e.getMessage());
         }

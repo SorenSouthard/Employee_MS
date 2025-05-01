@@ -12,7 +12,7 @@ import java.util.List;
 public class DatabaseConnection {
     private static final String URL = "jdbc:mysql://localhost:3306/employeedata";
     private static final String USER = "root";
-    private static final String PASSWORD = "password";
+    private static final String PASSWORD = "pass";
 
     public static Connection getConnection() throws SQLException {
         try {
@@ -196,8 +196,8 @@ public class DatabaseConnection {
             }
 
             // Insert into address table
-            String addressQuery = "INSERT INTO address (empid, gender, identified_race, street, city_ID, state_ID, zip, phone_number) " +
-                                  "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+            String addressQuery = "INSERT INTO address (empid, gender, identified_race, street, city_ID, state_ID, zip, phone_number, DOB) " +
+                                  "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
             try (PreparedStatement stmt = conn.prepareStatement(addressQuery)) {
                 stmt.setInt(1, empid);
                 stmt.setString(2, gender);
@@ -207,6 +207,7 @@ public class DatabaseConnection {
                 stmt.setInt(6, state_ID);
                 stmt.setString(7, zip);
                 stmt.setString(8, phone_number);
+                stmt.setString(9, DOB);
                 stmt.executeUpdate();
             }
 
@@ -374,7 +375,7 @@ public static List<Employee> searchEmployees(String column, String value) throws
     } else if (column.equals("Name")) {
         condition = "(LOWER(e.Fname) LIKE LOWER(?) OR LOWER(e.Lname) LIKE LOWER(?))";
     } else if (column.equals("DOB")) {
-        condition = "a.DOB = ?";
+        condition = "a.DOB LIKE ?";
     } else {
         condition = "LOWER(e." + column + ") LIKE LOWER(?)";
     }
@@ -409,6 +410,8 @@ public static List<Employee> searchEmployees(String column, String value) throws
         } else if (column.equals("Name")) {
             stmt.setString(1, "%" + value + "%"); // Fuzzy match for first name
             stmt.setString(2, "%" + value + "%"); // Fuzzy match for last name
+        } else if (column.equals("DOB")) {
+            stmt.setString(1, "%" + value + "%");
         } else {
             stmt.setString(1, "%" + value + "%"); // Fuzzy match for other columns
         }
@@ -449,18 +452,76 @@ public static List<Employee> searchEmployees(String column, String value) throws
 }
 
 public static boolean updateEmployeeData(int empid, String field, String value) throws SQLException {
-    String query = "UPDATE employees SET " + field + " = ? WHERE empid = ?";
-    try (Connection conn = getConnection();
-         PreparedStatement stmt = conn.prepareStatement(query)) {
-        stmt.setString(1, value);
-        stmt.setInt(2, empid);
-        int rowsAffected = stmt.executeUpdate();
-        return rowsAffected > 0;
-    } catch (SQLException e) {
-        System.out.println("Error updating employee data: " + e.getMessage());
-        throw e;
+    try (Connection conn = getConnection()) {
+        conn.setAutoCommit(false);
+
+        try {
+            PreparedStatement stmt;
+
+            switch (field) {
+                case "Fname":
+                case "Lname":
+                case "email":
+                case "DOB":
+                case "SSN":
+                    String table = field.equals("DOB") ? "address" : "employees";
+                    String query = "UPDATE " + table + " SET " + field + " = ? WHERE empid = ?";
+                    stmt = conn.prepareStatement(query);
+                    stmt.setString(1, value);
+                    stmt.setInt(2, empid);
+                    stmt.executeUpdate();
+                    break;
+
+                case "Job Title":
+                    // Get job_title_id from job_titles
+                    stmt = conn.prepareStatement("SELECT job_title_id FROM job_titles WHERE job_title = ?");
+                    stmt.setString(1, value);
+                    ResultSet rsJob = stmt.executeQuery();
+                    if (!rsJob.next()) throw new SQLException("Invalid job title: " + value);
+                    int jobTitleId = rsJob.getInt("job_title_id");
+
+                    // Update or insert into employee_job_titles
+                    stmt = conn.prepareStatement(
+                        "INSERT INTO employee_job_titles (empid, job_title_id) VALUES (?, ?) " +
+                        "ON DUPLICATE KEY UPDATE job_title_id = VALUES(job_title_id)"
+                    );
+                    stmt.setInt(1, empid);
+                    stmt.setInt(2, jobTitleId);
+                    stmt.executeUpdate();
+                    break;
+
+                case "Department":
+                    // Get div_id from division
+                    stmt = conn.prepareStatement("SELECT ID FROM division WHERE Name = ?");
+                    stmt.setString(1, value);
+                    ResultSet rsDept = stmt.executeQuery();
+                    if (!rsDept.next()) throw new SQLException("Invalid department name: " + value);
+                    int divId = rsDept.getInt("ID");
+
+                    // Update or insert into employee_division
+                    stmt = conn.prepareStatement(
+                        "INSERT INTO employee_division (empid, div_id) VALUES (?, ?) " +
+                        "ON DUPLICATE KEY UPDATE div_id = VALUES(div_id)"
+                    );
+                    stmt.setInt(1, empid);
+                    stmt.setInt(2, divId);
+                    stmt.executeUpdate();
+                    break;
+
+                default:
+                    throw new IllegalArgumentException("Unsupported field: " + field);
+            }
+
+            conn.commit();
+            return true;
+
+        } catch (SQLException e) {
+            conn.rollback();
+            throw e;
+        }
     }
 }
+
 
 
 
