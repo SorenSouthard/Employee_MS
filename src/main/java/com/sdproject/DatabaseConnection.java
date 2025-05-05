@@ -480,13 +480,22 @@ public static boolean updateEmployeeData(int empid, String field, String value) 
                     if (!rsJob.next()) throw new SQLException("Invalid job title: " + value);
                     int jobTitleId = rsJob.getInt("job_title_id");
 
-                    // Update or insert into employee_job_titles
-                    stmt = conn.prepareStatement(
-                        "INSERT INTO employee_job_titles (empid, job_title_id) VALUES (?, ?) " +
-                        "ON DUPLICATE KEY UPDATE job_title_id = VALUES(job_title_id)"
-                    );
+                    // Check if employee already has a job title entry
+                    stmt = conn.prepareStatement("SELECT 1 FROM employee_job_titles WHERE empid = ?");
                     stmt.setInt(1, empid);
-                    stmt.setInt(2, jobTitleId);
+                    ResultSet rsCheckJob = stmt.executeQuery();
+
+                    if (rsCheckJob.next()) {
+                        // Exists → update
+                        stmt = conn.prepareStatement("UPDATE employee_job_titles SET job_title_id = ? WHERE empid = ?");
+                        stmt.setInt(1, jobTitleId);
+                        stmt.setInt(2, empid);
+                    } else {
+                        // Doesn't exist → insert
+                        stmt = conn.prepareStatement("INSERT INTO employee_job_titles (empid, job_title_id) VALUES (?, ?)");
+                        stmt.setInt(1, empid);
+                        stmt.setInt(2, jobTitleId);
+                    }
                     stmt.executeUpdate();
                     break;
 
@@ -498,13 +507,22 @@ public static boolean updateEmployeeData(int empid, String field, String value) 
                     if (!rsDept.next()) throw new SQLException("Invalid department name: " + value);
                     int divId = rsDept.getInt("ID");
 
-                    // Update or insert into employee_division
-                    stmt = conn.prepareStatement(
-                        "INSERT INTO employee_division (empid, div_id) VALUES (?, ?) " +
-                        "ON DUPLICATE KEY UPDATE div_id = VALUES(div_id)"
-                    );
+                    // Check if employee already has a department entry
+                    stmt = conn.prepareStatement("SELECT 1 FROM employee_division WHERE empid = ?");
                     stmt.setInt(1, empid);
-                    stmt.setInt(2, divId);
+                    ResultSet rsCheckDept = stmt.executeQuery();
+
+                    if (rsCheckDept.next()) {
+                        // Exists → update
+                        stmt = conn.prepareStatement("UPDATE employee_division SET div_id = ? WHERE empid = ?");
+                        stmt.setInt(1, divId);
+                        stmt.setInt(2, empid);
+                    } else {
+                        // Doesn't exist → insert
+                        stmt = conn.prepareStatement("INSERT INTO employee_division (empid, div_id) VALUES (?, ?)");
+                        stmt.setInt(1, empid);
+                        stmt.setInt(2, divId);
+                    }
                     stmt.executeUpdate();
                     break;
 
@@ -521,6 +539,7 @@ public static boolean updateEmployeeData(int empid, String field, String value) 
         }
     }
 }
+
 
 
 
